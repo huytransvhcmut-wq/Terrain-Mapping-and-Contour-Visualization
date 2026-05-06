@@ -8,7 +8,7 @@ Build a program to generate contour maps of simple functions and interpret them 
 
 ## Inputs
 
-- A function of two variables, f(x, y), which defines the surface we want to visualize. Default will be f(x, y) = sin(sqrt(x^2 + y^2)).
+- A function of two variables, f(x, y), which defines the surface we want to visualize. Default will be `f(x, y) = sin(sqrt(x^2 + y^2))`.
 - The range of x and y values to view, which determines the area of the contour map. Default will be from -10 to 10 for both x and y.
 - The step size for x and y values, which determines the resolution of the contour map. Default will be 0.1.
 
