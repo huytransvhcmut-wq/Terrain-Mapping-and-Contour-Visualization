@@ -20,7 +20,7 @@ Build a program to generate contour maps of simple functions and interpret them 
 - The program will also print out the coordinates of the peaks and valleys identified in the contour map.
 - The program will be implemented in Python and will use libraries such as NumPy for numerical operations and Plotly for visualization.
 - The program will be able to handle complex functions and will be able to visualize them in a 2D plane.
-- The program will able to convert the mathematical expression to a numpy expression and will be able to visualize it in a 2D plane (For example, if the function is f(x, y) = sin(sqrt(x^2 + y^2)), the program will be able to convert it to a numpy expression and will be able to visualize it in a 2D plane).
+- The program will able to convert the mathematical expression to a numpy expression and will be able to visualize it in a 2D plane (For example, if the function is `f(x, y) = sin(sqrt(x^2 + y^2))`, the program will be able to convert it to a numpy expression and will be able to visualize it in a 2D plane).
 
 
 ## Running the script 
@@ -50,7 +50,7 @@ Flags:
 - `-s` or `--step_size`: The step size for x and y values, e.g., "0.1".
 - `-h` or `--help`: Show the help message and exit.
 
-For example, to visualize the function f(x, y) = sin(sqrt(x^2 + y^2)) over the range of -10 to 10 for both x and y with a step size of 0.1, you would run:
+For example, to visualize the function `f(x, y) = sin(sqrt(x^2 + y^2))` over the range of -10 to 10 for both x and y with a step size of 0.1, you would run:
 
 ```bash
 python contour_map.py -f "sin(sqrt(x^2 + y^2))" -x "-10,10" -y "-10,10" -s "0.1"
