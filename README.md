@@ -1,58 +1,88 @@
-# Terrain Mapping and Contour Visualization using Python 
+# Terrain Mapping and Contour Visualization using Python and MATLAB
 
 Date created: April-20-2026
+Date modified: May-15-2026
 
-## Introduction
+A complete dual-language analysis and visualization package designed to parse mathematical surfaces $f(x, y)$, calculate critical extrema, and interpret scalar functions as interactive geographical terrain models.
 
-Build a program to generate contour maps of simple functions and interpret them as terrain. Identify peaks, valleys, and slopes.
+---
 
-## Inputs
+## Features
 
-- A function of two variables, f(x, y), which defines the surface we want to visualize. Default will be `f(x, y) = sin(sqrt(x^2 + y^2))`.
-- The range of x and y values to view, which determines the area of the contour map. Default will be from -10 to 10 for both x and y.
-- The step size for x and y values, which determines the resolution of the contour map. Default will be 0.1.
+- **String-Based Function Parsing**: Directly input complex mathematical expressions like `sin(sqrt(x^2 + y^2))` or polynomials as readable text strings.
+- **Topographical Feature Detection**:
+  - **Local Maxima (Peaks)**: Identifies strict elevated local supports.
+  - **Local Minima (Valleys)**: Detects deep local depressions and clearance zones.
+  - **Saddle Points (Connecting Ridges)**: Isolates hyperbolic cross-passes connecting local peaks.
+  - **Inconclusive Regions**: Flags flat local plateaus requiring boundary/higher-order checks.
+- **Dual Visual Output**:
+  - **2D Contour Map**: High-resolution isometric top-down map with customizable contour intervals ($k$).
+  - **3D Surface Visualization**: Fully shaded interactive/rotatable mesh view embedded with explicit 3D coordinate annotations.
 
-## Output Requirements
+---
 
-- A contour map that represents the levels of the function f(x, y) in a 2D plane.
-- Peaks, valleys and slopes of the function can be identified from the contour map.
-- The contour map will be displayed using Plotly, which allows for interactive visualization.
-- The program will also print out the coordinates of the peaks and valleys identified in the contour map.
-- The program will be implemented in Python and will use libraries such as NumPy for numerical operations and Plotly for visualization.
-- The program will be able to handle complex functions and will be able to visualize them in a 2D plane.
-- The program will able to convert the mathematical expression to a numpy expression and will be able to visualize it in a 2D plane (For example, if the function is `f(x, y) = sin(sqrt(x^2 + y^2))`, the program will be able to convert it to a numpy expression and will be able to visualize it in a 2D plane).
+## Implementations Included
 
+### 1. Python Implementation (`contour_map.py`)
+Built using **NumPy** for optimized discrete numerical operations and **Plotly** for responsive, browser-ready interactive dashboards. Features automatic boundary isolation and interactive HTML control panels to toggle individual feature trace groups.
 
-## Running the script 
-- First, create a virtual environment and install the required libraries using the command:
+#### Installation & Setup
+Create a virtual environment and install the required packages:
 ```bash
-# Create a virtual environment
+# Create virtual environment
 python -m venv .venv
 
-# Activate the virtual environment 
-## For Windows
+# Activate environment
+# On Windows:
 .venv\Scripts\activate
-## For Unix or MacOS
+# On Unix/macOS:
 source .venv/bin/activate
-# Install the required libraries
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-- Then, run the script using the command:
+#### Command-Line Usage
+Run the script using flexible command-line flags:
 ```bash
-python contour_map.py -f [your_function] -x [x range to view] -y [y range to view] -s [step size for x and y]
+python contour_map.py -f "<function_expression>" -x "<xmin>,<xmax>" -y "<ymin>,<ymax>" -s <step_size> -k <contour_levels>
 ```
 
-Flags: 
-- `-f` or `--function`: The function of two variables to visualize, e.g., "sin(sqrt(x^2 + y^2))".
-- `-x` or `--x_range`: The range of x values to view,e.g., "-10,10".
-- `-y` or `--y_range`: The range of y values to view,e.g., "-10,10".
-- `-s` or `--step_size`: The step size for x and y values, e.g., "0.1".
-- `-h` or `--help`: Show the help message and exit.
+**Available Flags**:
+- `-f`, `--function`: Mathematical expression string (e.g., `"-0.1x^4 - 0.1y^4 + 0.8x^2 + 0.8y^2 + 1"`).
+- `-x`, `--x_range`: Domain range for the X coordinate (default: `"-3,3"`).
+- `-y`, `--y_range`: Domain range for the Y coordinate (default: `"-3,3"`).
+- `-s`, `--step_size`: Discrete sampling step size (default: `0.05`).
+- `-k`, `--contour_levels`: Target number of contour levels displayed (default: `30`).
+- `-h`, `--help`: Display available CLI arguments and instructions.
 
-For example, to visualize the function `f(x, y) = sin(sqrt(x^2 + y^2))` over the range of -10 to 10 for both x and y with a step size of 0.1, you would run:
-
+**Example**:
 ```bash
-python contour_map.py -f "sin(sqrt(x^2 + y^2))" -x "-10,10" -y "-10,10" -s "0.1"
+python contour_map.py -f "-0.1x^4 - 0.1y^4 + 0.8x^2 + 0.8y^2 + 1" -x "-3,3" -y "-3,3" -s 0.05 -k 30
 ```
 
+---
+
+### 2. MATLAB Implementation (`contour_map.m`)
+Leverages native MATLAB computing combined with the **Symbolic Math Toolbox** to execute analytic partial differentiation ($f_x, f_y$), exact algebraic isolation of real critical solutions via the Second Derivative Test discriminant ($D = f_{xx}f_{yy} - f_{xy}^2$), and produces highly polished dual-panel vector graphics.
+
+#### Running the Script
+1. Open `contour_map.m` inside your MATLAB IDE.
+2. Modify the configuration parameters directly at the top of the file if desired:
+   ```matlab
+   f_str = '-0.1*x^4 - 0.1*y^4 + 0.8*x^2 + 0.8*y^2 + 1';
+   k = 30; % Number of contour levels
+   x_range = [-3, 3];
+   y_range = [-3, 3];
+   step_size = 0.05;
+   ```
+3. Click **Run**. The script will automatically compute the derivatives, print detailed classification logs to the MATLAB console, and render a complete native Figure Window incorporating customized plotting symbols and text labels.
+
+---
+
+## Output Structure
+
+Both implementations return robust analytical summaries containing:
+- Full coordinates of all interior extrema bounded within the analysis grid domain.
+- Evaluated pad elevation/thickness ($z$) at each respective point.
+- Extrema categorization cleanly structured into dedicated summary lists and formatted tabular reports.
