@@ -18,9 +18,10 @@ from plotly.subplots import make_subplots
 
 
 DEFAULT_FUNCTION_EXPR = "sin(sqrt(x^2 + y^2))"
-DEFAULT_X_RANGE = "-10,10"
-DEFAULT_Y_RANGE = "-10,10"
-DEFAULT_STEP_SIZE = 0.1
+DEFAULT_X_RANGE = "-3,3"
+DEFAULT_Y_RANGE = "-3,3"
+DEFAULT_STEP_SIZE = 0.05
+DEFAULT_CONTOUR_LEVELS = 30
 
 SAFE_NAMES = ("sin", "cos", "tan", "exp", "log", "ln", "sqrt", "abs", "pi", "e")
 
@@ -42,6 +43,7 @@ VALUE_FLAGS = {
     "-x", "--x_range",
     "-y", "--y_range",
     "-s", "--step_size",
+    "-k", "--contour_levels",
 }
 
 
@@ -117,6 +119,14 @@ def parse_args():
         type=float,
         default=DEFAULT_STEP_SIZE,
         help=f"Step size for x and y. Default: {DEFAULT_STEP_SIZE}.",
+    )
+    parser.add_argument(
+        "-k",
+        "--contour_levels",
+        dest="contour_levels",
+        type=int,
+        default=DEFAULT_CONTOUR_LEVELS,
+        help=f"Number of contour levels (k). Default: {DEFAULT_CONTOUR_LEVELS}.",
     )
     return parser.parse_args(preprocess_argv(sys.argv[1:]))
 
@@ -381,23 +391,84 @@ def find_local_extrema(Z):
     return peaks, valleys
 
 
-# Compute peaks, valleys, and steepest slope information for the surface.
+def find_saddles_and_inconclusive(Z, peak_indices, valley_indices):
+    saddles = []
+    inconclusive = []
+    rows, cols = Z.shape
+    if rows < 3 or cols < 3:
+        return [], []
+
+    extrema_set = set(peak_indices) | set(valley_indices)
+
+    offsets = [
+        (-1, -1), (-1, 0), (-1, 1),
+        (0, 1), (1, 1), (1, 0),
+        (1, -1), (0, -1)
+    ]
+
+    for i in range(1, rows - 1):
+        for j in range(1, cols - 1):
+            if (i, j) in extrema_set:
+                continue
+
+            z_center = Z[i, j]
+            
+            all_equal = True
+            diffs = []
+            for di, dj in offsets:
+                val = Z[i + di, j + dj]
+                if val != z_center:
+                    all_equal = False
+                diffs.append(val - z_center)
+
+            if all_equal:
+                inconclusive.append((i, j))
+                continue
+
+            signs = []
+            for d in diffs:
+                if d > 0:
+                    signs.append(1)
+                elif d < 0:
+                    signs.append(-1)
+
+            if not signs:
+                continue
+
+            sign_changes = 0
+            for k in range(len(signs)):
+                if signs[k] != signs[(k + 1) % len(signs)]:
+                    sign_changes += 1
+
+            if sign_changes >= 4:
+                saddles.append((i, j))
+
+    return saddles, inconclusive
+
+
+# Compute critical points and slope information for the surface.
 def analyze_surface(X, Y, Z, x, y):
     dy, dx = np.gradient(Z, y, x, edge_order=2)
     slope_magnitude = np.sqrt(dx**2 + dy**2)
 
     peak_indices, valley_indices = find_local_extrema(Z)
 
-    # Make sure the global extrema show up even if they happen to land on
-    # the grid boundary (which the interior neighborhood test skips).
+    rows, cols = Z.shape
     global_peak = tuple(int(v) for v in np.unravel_index(int(np.argmax(Z)), Z.shape))
     global_valley = tuple(int(v) for v in np.unravel_index(int(np.argmin(Z)), Z.shape))
-    if global_peak not in set(peak_indices):
-        peak_indices.append(global_peak)
-    if global_valley not in set(valley_indices):
-        valley_indices.append(global_valley)
+    
+    # Only include global extrema if they are strictly in the interior (exclude bordering range)
+    if (0 < global_peak[0] < rows - 1) and (0 < global_peak[1] < cols - 1):
+        if global_peak not in set(peak_indices):
+            peak_indices.append(global_peak)
+            
+    if (0 < global_valley[0] < rows - 1) and (0 < global_valley[1] < cols - 1):
+        if global_valley not in set(valley_indices):
+            valley_indices.append(global_valley)
 
-    steep_idx = np.unravel_index(int(np.argmax(slope_magnitude)), Z.shape)
+    saddle_indices, inconc_indices = find_saddles_and_inconclusive(
+        Z, peak_indices, valley_indices
+    )
 
     def pack(idx):
         i, j = idx
@@ -410,13 +481,15 @@ def analyze_surface(X, Y, Z, x, y):
 
     peaks = sorted((pack(idx) for idx in peak_indices), key=lambda p: -p["z"])
     valleys = sorted((pack(idx) for idx in valley_indices), key=lambda p: p["z"])
-    steepest = pack(steep_idx)
+    saddles = sorted((pack(idx) for idx in saddle_indices), key=lambda p: -p["z"])
+    inconclusive = sorted((pack(idx) for idx in inconc_indices), key=lambda p: -p["z"])
 
     return {
         "slope_magnitude": slope_magnitude,
         "peaks": peaks,
         "valleys": valleys,
-        "steepest": steepest,
+        "saddles": saddles,
+        "inconclusive": inconclusive,
         "global_peak": peaks[0] if peaks else None,
         "global_valley": valleys[0] if valleys else None,
     }
@@ -576,7 +649,8 @@ def format_coord_lines(points, prefix, limit=SUMMARY_MAX_COORDS):
 def build_summary_html(args, x, y, analysis, slope_mag):
     peaks = analysis["peaks"]
     valleys = analysis["valleys"]
-    steep = analysis["steepest"]
+    saddles = analysis["saddles"]
+    inconc = analysis["inconclusive"]
     xmin, xmax = x[0], x[-1]
     ymin, ymax = y[0], y[-1]
 
@@ -584,8 +658,9 @@ def build_summary_html(args, x, y, analysis, slope_mag):
     parts.append("<b>Summary</b>")
     parts.append(f"Peaks:     {len(peaks)}")
     parts.append(f"Valleys:   {len(valleys)}")
+    parts.append(f"Saddles:   {len(saddles)}")
+    parts.append(f"Inconcl:   {len(inconc)}")
     parts.append(f"Slope max: {np.max(slope_mag):.4f}")
-    parts.append(f"Slope avg: {np.mean(slope_mag):.4f}")
     parts.append("")
     parts.append(f"<b>Peaks (top {min(len(peaks), SUMMARY_MAX_COORDS)})</b>")
     parts.extend(format_coord_lines(peaks, "P"))
@@ -593,16 +668,14 @@ def build_summary_html(args, x, y, analysis, slope_mag):
     parts.append(f"<b>Valleys (top {min(len(valleys), SUMMARY_MAX_COORDS)})</b>")
     parts.extend(format_coord_lines(valleys, "V"))
     parts.append("")
-    parts.append("<b>Steepest</b>")
-    parts.append(
-        f"  ({steep['x']:>7.3f}, {steep['y']:>7.3f}) "
-        f"slope={steep['slope']:.3f}"
-    )
+    parts.append(f"<b>Saddles (top {min(len(saddles), SUMMARY_MAX_COORDS)})</b>")
+    parts.extend(format_coord_lines(saddles, "S"))
     parts.append("")
-    parts.append("<b>Grid</b>")
+    parts.append("<b>Grid & Contours</b>")
     parts.append(f"  x = [{xmin}, {xmax}]")
     parts.append(f"  y = [{ymin}, {ymax}]")
     parts.append(f"  step = {args.step_size}")
+    parts.append(f"  levels (k) = {args.contour_levels}")
     parts.append(f"  {len(x)} x {len(y)} points")
     return "<br>".join(parts)
 
@@ -620,14 +693,16 @@ def make_visibility_toggle(label, trace_indices):
     )
 
 
-def build_toggle_menu(peak_idx, valley_idx, steep_idx):
+def build_toggle_menu(peak_idx, valley_idx, saddle_idx, inconc_idx):
     buttons = []
     if peak_idx:
         buttons.append(make_visibility_toggle("Toggle Peaks", peak_idx))
     if valley_idx:
         buttons.append(make_visibility_toggle("Toggle Valleys", valley_idx))
-    if steep_idx:
-        buttons.append(make_visibility_toggle("Toggle Steepest", steep_idx))
+    if saddle_idx:
+        buttons.append(make_visibility_toggle("Toggle Saddles", saddle_idx))
+    if inconc_idx:
+        buttons.append(make_visibility_toggle("Toggle Inconclusive", inconc_idx))
     if not buttons:
         return []
 
@@ -663,6 +738,7 @@ def build_figure(args, x, y, X, Y, Z, analysis):
             x=x,
             y=y,
             z=Z,
+            ncontours=args.contour_levels,
             colorscale="Earth",
             contours=dict(coloring="fill", showlabels=True, labelfont=dict(size=10)),
             colorbar=dict(
@@ -698,8 +774,11 @@ def build_figure(args, x, y, X, Y, Z, analysis):
     valley_trace_indices = add_extrema_traces(
         fig, analysis["valleys"], "Valley", "blue", "triangle-down", "diamond", "V"
     )
-    steep_trace_indices = add_single_marker(
-        fig, analysis["steepest"], "Steepest", "black", "x", "cross"
+    saddle_trace_indices = add_extrema_traces(
+        fig, analysis["saddles"], "Saddle", "green", "circle", "circle", "S"
+    )
+    inconc_trace_indices = add_extrema_traces(
+        fig, analysis["inconclusive"], "Inconclusive", "gray", "square", "square", "I"
     )
 
     slope_mag = analysis["slope_magnitude"]
@@ -728,7 +807,7 @@ def build_figure(args, x, y, X, Y, Z, analysis):
         margin=dict(r=430, l=60, t=110, b=100),
         scene=dict(xaxis_title="X", yaxis_title="Y", zaxis_title="Elevation (Z)"),
         updatemenus=build_toggle_menu(
-            peak_trace_indices, valley_trace_indices, steep_trace_indices
+            peak_trace_indices, valley_trace_indices, saddle_trace_indices, inconc_trace_indices
         ),
         legend=dict(
             orientation="h",
@@ -784,7 +863,8 @@ def print_extrema_table(points, prefix, title):
 def print_summary(args, x, y, analysis):
     peaks = analysis["peaks"]
     valleys = analysis["valleys"]
-    steep = analysis["steepest"]
+    saddles = analysis["saddles"]
+    inconc = analysis["inconclusive"]
     slope_mag = analysis["slope_magnitude"]
 
     print(f"Function: f(x, y) = {args.function_expr}")
@@ -792,17 +872,18 @@ def print_summary(args, x, y, analysis):
         f"Grid:     x in [{x[0]:g}, {x[-1]:g}], "
         f"y in [{y[0]:g}, {y[-1]:g}], "
         f"step = {args.step_size}  "
-        f"({len(x)} x {len(y)} points)"
+        f"({len(x)} x {len(y)} points)\n"
+        f"Contours: k = {args.contour_levels} levels"
     )
     print()
     print_extrema_table(peaks, "P", "Peaks (local maxima, sorted by z desc)")
     print()
     print_extrema_table(valleys, "V", "Valleys (local minima, sorted by z asc)")
     print()
-    print(
-        f"Steepest at (x, y) = ({steep['x']:>9.4f}, {steep['y']:>9.4f}), "
-        f"slope = {steep['slope']:.4f}"
-    )
+    print_extrema_table(saddles, "S", "Saddle points (sorted by z desc)")
+    print()
+    print_extrema_table(inconc, "I", "Inconclusive points (sorted by z desc)")
+    print()
     print(
         f"Slope statistics: max = {np.max(slope_mag):.4f}, "
         f"mean = {np.mean(slope_mag):.4f}"

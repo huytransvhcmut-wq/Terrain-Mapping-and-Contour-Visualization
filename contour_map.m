@@ -16,9 +16,13 @@ clear; clc; close all;
 %   'sin(sqrt(x^2 + y^2))'          (Circular waves / ripple pattern)
 %   'x^2 + y^2'                     (Simple paraboloid bowl, 1 minimum)
 %   'x^2 - y^2'                     (Standard hyperbolic saddle)
-f_str = 'x^3 - 3*x + y^3 - 3*y';
+% f_str = 'x^3 - 3*x + y^3 - 3*y';
 
-% Define the contour modification parameter k at first.
+% f(x,y) = -0.1x^4 - 0.1y^4 + 0.8x^2 + 0.8y^2 + 1
+
+
+f_str = '-0.1*x^4 - 0.1*y^4 + 0.8*x^2 + 0.8*y^2 + 1'; %
+
 % 'k' determines the number of contour levels displayed in the contour map.
 k = 30;
 
